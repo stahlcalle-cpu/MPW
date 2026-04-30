@@ -260,6 +260,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 <input autocomplete="off" class="search-input" id="searchInput" placeholder="Sök aktie, fond eller index — ticker eller namn..." spellcheck="false" type="text"/>
 <div class="search-dropdown" id="searchDropdown"></div>
 </div>
+<div style="flex:1"></div>
+<button class="refresh-btn" id="globalRefresh" onclick="refreshDashboard()" title="Uppdatera allt" style="padding:10px 16px;font-size:13px;border-radius:10px;flex-shrink:0"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>Uppdatera</button>
 </div>
 <!-- ═══ MAIN CONTENT ═══ -->
 <div class="content">
@@ -276,8 +278,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 <span class="hero-change flat" id="heroOMXChange"></span>
 </div>
 <div class="hero-time" id="heroOMXTime" style="font-size:11px;color:#aab0be;margin-bottom:8px"></div>
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-<button class="refresh-btn hero-refresh" id="heroOMXRefresh" onclick="refreshHero(0)" title="Uppdatera"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>Uppdatera</button>
+<div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:6px">
 <div class="period-btns hero-period-btns" id="heroOMXBtns">
 <button class="pbtn active" data-range="1d" onclick="setHeroRange(0,'1d',this)">1D</button>
 <button class="pbtn" data-range="ytd" onclick="setHeroRange(0,'ytd',this)">YTD</button>
@@ -301,8 +302,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 <span class="hero-change flat" id="heroSPChange"></span>
 </div>
 <div class="hero-time" id="heroSPTime" style="font-size:11px;color:#aab0be;margin-bottom:8px"></div>
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-<button class="refresh-btn hero-refresh" id="heroSPRefresh" onclick="refreshHero(1)" title="Uppdatera"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>Uppdatera</button>
+<div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:6px">
 <div class="period-btns hero-period-btns" id="heroSPBtns">
 <button class="pbtn active" data-range="1d" onclick="setHeroRange(1,'1d',this)">1D</button>
 <button class="pbtn" data-range="ytd" onclick="setHeroRange(1,'ytd',this)">YTD</button>
@@ -1843,6 +1843,9 @@ const LIST_INDICES = [
   { ticker:'^HSI',      label:'Hang Seng',     flag:'hk' },
   { ticker:'^FTSE',     label:'FTSE 100',      flag:'gb' },
   { ticker:'^GDAXI',    label:'DAX',           flag:'de' },
+  { ticker:'ES=F',      label:'S&P 500 Futures',  flag:'us', separator:true },
+  { ticker:'NQ=F',      label:'Nasdaq Futures', flag:'us' },
+  { ticker:'YM=F',      label:'Dow Futures',    flag:'us' },
 ];
 
 const LIST_COMM = [
@@ -1866,6 +1869,8 @@ const LIST_FX = [
   { ticker:'JPYSEK=X', label:'JPY/SEK', flag:'jp' },
   { ticker:'EURUSD=X', label:'EUR/USD', flag:'eu' },
 ];
+
+const LIST_FUTURES = [];
 
 let _heroCharts = {};
 
@@ -2099,6 +2104,19 @@ async function refreshChart(){
   if(btn) btn.classList.remove('spinning');
 }
 
+async function refreshDashboard(){
+  const btn = document.getElementById('globalRefresh');
+  if(btn) btn.classList.add('spinning');
+  // Clear all caches so everything re-fetches
+  _mktQuoteCache.data = null;
+  _mktQuoteCache._ts = 0;
+  for(const key of Object.keys(_mktChartCache)){
+    if(key.includes('_1d_') || key.includes('_5m')) delete _mktChartCache[key];
+  }
+  await loadDashboard();
+  if(btn) btn.classList.remove('spinning');
+}
+
 function renderList(containerId, items, quoteMap){
   const el = document.getElementById(containerId);
   if(!el) return;
@@ -2120,7 +2138,9 @@ function renderList(containerId, items, quoteMap){
       ? `<span style="width:22px;height:15px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0"><span style="width:8px;height:8px;border-radius:50%;background:var(--c-cyan)"></span></span>`
       : `<img class="li-flag" src="https://flagcdn.com/w40/${item.flag}.png" alt="${item.flag}" onerror="this.style.display='none'">`;
 
-    return `<div class="list-item" onclick="selectTile('${esc(item.ticker)}')">
+    const sep = item.separator ? `<div style="border-top:1px solid var(--c-border);margin:4px 0;grid-column:1/-1"></div>` : '';
+
+    return `${sep}<div class="list-item" onclick="selectTile('${esc(item.ticker)}')">
       ${flagHtml}
       <span class="li-name">${esc(item.label)}</span>
       <span class="li-change ${cls}">${changePct != null ? sign + changePct.toFixed(2) + '%' : '–'}</span>
