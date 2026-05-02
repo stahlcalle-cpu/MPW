@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>FundFinder Test</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#f0f2f5;--card:#fff;--navy:#002359;--cyan:#009fdf;--green:#22c55e;--red:#ef4444;
+  --slate:#627ca5;--border:#e2e6ee;--text:#1a2b47;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.header{background:var(--navy);padding:16px 28px;display:flex;align-items:center;gap:16px}
+.header h1{color:#fff;font-size:18px;font-weight:700;letter-spacing:-.3px}
+.header .search-wrap{flex:1;position:relative;max-width:500px}
+.header input{width:100%;padding:10px 14px 10px 38px;border:none;border-radius:10px;font-size:14px;font-family:inherit;background:rgba(255,255,255,.1);color:#fff;outline:none}
+.header input::placeholder{color:rgba(255,255,255,.4)}
+.header input:focus{background:rgba(255,255,255,.15);box-shadow:0 0 0 2px rgba(0,159,223,.3)}
+.header .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.4)}
+.status-bar{background:var(--card);border-bottom:1px solid var(--border);padding:10px 28px;font-size:12px;color:var(--slate);display:flex;gap:16px;align-items:center}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block}
+.content{max-width:1200px;margin:0 auto;padding:20px}
+
+/* Fund list */
+.fund-table{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.fund-table thead{background:#f7f8fa}
+.fund-table th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--slate);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap}
+.fund-table th:hover{color:var(--navy)}
+.fund-table th.sort-asc::after{content:' ▲';font-size:9px}
+.fund-table th.sort-desc::after{content:' ▼';font-size:9px}
+.fund-table td{padding:10px 14px;font-size:13px;border-bottom:1px solid #f0f2f5;white-space:nowrap}
+.fund-table tr:hover{background:#f7f9fc;cursor:pointer}
+.fund-table .fname{font-weight:600;color:var(--navy);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fund-table .isin{font-size:11px;color:var(--slate);font-family:'SF Mono',monospace}
+.pos{color:var(--green)}.neg{color:var(--red)}
+.rating{display:inline-flex;gap:1px}
+.star{color:#f59e0b;font-size:12px}
+.star.empty{color:#ddd}
+.sri-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;color:#fff}
+.sri-1{background:var(--green)}.sri-2{background:#84cc16}.sri-3{background:#eab308}.sri-4{background:#f97316}.sri-5{background:var(--red)}
+
+/* Fund detail overlay */
+.overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:100;justify-content:center;align-items:flex-start;padding:40px 20px;overflow-y:auto}
+.overlay.open{display:flex}
+.detail-card{background:var(--card);border-radius:14px;width:100%;max-width:900px;box-shadow:0 20px 60px rgba(0,0,0,.15);overflow:hidden;animation:slideUp .25s ease}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.detail-header{background:var(--navy);color:#fff;padding:24px 28px;display:flex;justify-content:space-between;align-items:flex-start}
+.detail-header h2{font-size:20px;font-weight:800;letter-spacing:-.3px}
+.detail-header .sub{font-size:12px;color:rgba(255,255,255,.5);margin-top:4px}
+.close-btn{background:rgba(255,255,255,.1);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.close-btn:hover{background:rgba(255,255,255,.2)}
+.detail-body{padding:24px 28px}
+.detail-section{margin-bottom:24px}
+.detail-section h3{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--slate);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.detail-section h3::before{content:'';width:3px;height:14px;background:var(--cyan);border-radius:2px}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.kpi{background:#f7f8fa;border-radius:10px;padding:12px 14px}
+.kpi .label{font-size:10px;color:var(--slate);text-transform:uppercase;font-weight:600;letter-spacing:.3px}
+.kpi .value{font-size:18px;font-weight:800;margin-top:2px}
+
+/* Charts: donut + bars */
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:700px){.charts-row{grid-template-columns:1fr}}
+.chart-box{background:#f7f8fa;border-radius:12px;padding:16px}
+.chart-box h4{font-size:12px;font-weight:700;color:var(--slate);margin-bottom:12px;text-transform:uppercase;letter-spacing:.3px}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.bar-label{font-size:11px;width:120px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.bar-track{flex:1;height:16px;background:#e2e6ee;border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width .4s ease}
+.bar-pct{font-size:11px;font-weight:700;width:40px;text-align:right;flex-shrink:0}
+
+.loading{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--slate);gap:8px}
+.spin{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--cyan);border-radius:50%;animation:sp .6s linear infinite;display:inline-block}
+@keyframes sp{to{transform:rotate(360deg)}}
+.pagination{display:flex;justify-content:center;gap:8px;padding:20px}
+.pagination button{padding:6px 14px;border:1px solid var(--border);background:var(--card);border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;color:var(--slate)}
+.pagination button:hover{border-color:var(--cyan);color:var(--cyan)}
+.pagination button.active{background:var(--cyan);color:#fff;border-color:var(--cyan)}
+.pagination button:disabled{opacity:.3;cursor:default}
+.count{font-size:12px;color:var(--slate);padding:0 28px 10px;text-align:right}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>FundFinder Test</h1>
+  <div class="search-wrap">
+    <svg class="search-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <input id="searchInput" type="text" placeholder="Sök fond..." autocomplete="off"/>
+  </div>
+</div>
+<div class="status-bar">
+  <span><span class="status-dot" id="statusDot"></span></span>
+  <span id="statusText">Laddar fondlista...</span>
+</div>
+
+<div class="content">
+  <div class="count" id="fundCount"></div>
+  <table class="fund-table">
+    <thead>
+      <tr>
+        <th data-col="N" class="sort-asc">Fondnamn</th>
+        <th data-col="I">ISIN</th>
+        <th data-col="R">Betyg</th>
+        <th data-col="SR">Hållb.</th>
+        <th data-col="Y">YTD</th>
+        <th data-col="R1">1 år</th>
+        <th data-col="R3">3 år</th>
+        <th data-col="M">Avgift</th>
+        <th data-col="C">Valuta</th>
+      </tr>
+    </thead>
+    <tbody id="fundBody">
+      <tr><td colspan="9"><div class="loading"><span class="spin"></span>Laddar fondlista från FundFinder...</div></td></tr>
+    </tbody>
+  </table>
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<!-- Detail overlay -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeDetail()">
+  <div class="detail-card">
+    <div class="detail-header">
+      <div>
+        <h2 id="detailName">...</h2>
+        <div class="sub" id="detailSub"></div>
+      </div>
+      <button class="close-btn" onclick="closeDetail()">&times;</button>
+    </div>
+    <div class="detail-body" id="detailBody">
+      <div class="loading"><span class="spin"></span>Laddar fonddata...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const FF_BASE = 'https://fundfinder.soderbergpartners.se/funds';
+let _allFunds = [];
+let _filtered = [];
+let _page = 0;
+const PAGE_SIZE = 50;
+let _sortCol = 'N';
+let _sortAsc = true;
+
+// Colors for charts
+const COLORS = ['#009fdf','#ff6380','#22c55e','#f59e0b','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1','#84cc16','#06b6d4','#e11d48'];
+
+// Parse XML text to array of objects
+function parseXmlList(xmlText) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlText, 'text/xml');
+  const funds = doc.querySelectorAll('Fund');
+  const result = [];
+  funds.forEach(f => {
+    const get = tag => {
+      const el = f.querySelector(tag);
+      return el ? el.textContent : null;
+    };
+    result.push({
+      Id: get('Id'),
+      N: get('N'),
+      I: get('I'),
+      C: get('C'),
+      R: parseFloat(get('R')) || 0,
+      SR: parseFloat(get('SR')) || 0,
+      Y: parseFloat(get('Y')) || 0,
+      R1: parseFloat(get('R1')) || 0,
+      R3: parseFloat(get('R3')) || 0,
+      M: parseFloat(get('M')) || 0,
+      AUM: parseFloat(get('AUM')) || 0,
+      FSC: get('FSC'),
+      MSSID: get('MSSID'),
+    });
+  });
+  return result;
+}
+
+function fmtPct(v) {
+  if(v == null || isNaN(v)) return '–';
+  const s = v >= 0 ? '+' : '';
+  return `<span class="${v >= 0 ? 'pos' : 'neg'}">${s}${v.toFixed(1)}%</span>`;
+}
+
+function renderStars(n) {
+  let h = '';
+  for(let i = 1; i <= 5; i++) h += `<span class="star ${i <= n ? '' : 'empty'}">★</span>`;
+  return `<span class="rating">${h}</span>`;
+}
+
+function sriLabel(n) {
+  const labels = {1:'Grön',2:'Ljusgrön',3:'Gul',4:'Orange',5:'Röd'};
+  return `<span class="sri-badge sri-${n}">${labels[n] || '–'}</span>`;
+}
+
+function renderTable() {
+  const start = _page * PAGE_SIZE;
+  const pageData = _filtered.slice(start, start + PAGE_SIZE);
+  const body = document.getElementById('fundBody');
+  
+  if(!pageData.length) {
+    body.innerHTML = '<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--slate)">Inga fonder hittades</td></tr>';
+    return;
+  }
+  
+  body.innerHTML = pageData.map(f => `
+    <tr onclick="openDetail('${f.Id}','${esc(f.N)}','${esc(f.I)}','${esc(f.C)}')">
+      <td class="fname" title="${esc(f.N)}">${esc(f.N)}</td>
+      <td class="isin">${f.I || '–'}</td>
+      <td>${renderStars(f.R)}</td>
+      <td>${sriLabel(f.SR)}</td>
+      <td>${fmtPct(f.Y)}</td>
+      <td>${fmtPct(f.R1)}</td>
+      <td>${fmtPct(f.R3)}</td>
+      <td>${f.M ? (f.M / 100).toFixed(2) + '%' : '–'}</td>
+      <td>${f.C || '–'}</td>
+    </tr>
+  `).join('');
+  
+  document.getElementById('fundCount').textContent = `Visar ${start+1}–${Math.min(start+PAGE_SIZE, _filtered.length)} av ${_filtered.length} fonder`;
+  renderPagination();
+}
+
+function renderPagination() {
+  const totalPages = Math.ceil(_filtered.length / PAGE_SIZE);
+  const pg = document.getElementById('pagination');
+  if(totalPages <= 1) { pg.innerHTML = ''; return; }
+  
+  let html = `<button ${_page === 0 ? 'disabled' : ''} onclick="goPage(${_page-1})">‹ Förra</button>`;
+  
+  const start = Math.max(0, _page - 3);
+  const end = Math.min(totalPages - 1, _page + 3);
+  
+  if(start > 0) html += `<button onclick="goPage(0)">1</button>`;
+  if(start > 1) html += `<button disabled>...</button>`;
+  
+  for(let i = start; i <= end; i++) {
+    html += `<button class="${i === _page ? 'active' : ''}" onclick="goPage(${i})">${i+1}</button>`;
+  }
+  
+  if(end < totalPages - 2) html += `<button disabled>...</button>`;
+  if(end < totalPages - 1) html += `<button onclick="goPage(${totalPages-1})">${totalPages}</button>`;
+  
+  html += `<button ${_page === totalPages-1 ? 'disabled' : ''} onclick="goPage(${_page+1})">Nästa ›</button>`;
+  pg.innerHTML = html;
+}
+
+function goPage(p) { _page = p; renderTable(); window.scrollTo(0, 0); }
+
+function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;') : ''; }
+
+function sortBy(col) {
+  if(_sortCol === col) _sortAsc = !_sortAsc;
+  else { _sortCol = col; _sortAsc = col === 'N'; }
+  
+  document.querySelectorAll('.fund-table th').forEach(th => {
+    th.classList.remove('sort-asc','sort-desc');
+    if(th.dataset.col === col) th.classList.add(_sortAsc ? 'sort-asc' : 'sort-desc');
+  });
+  
+  _filtered.sort((a, b) => {
+    let va = a[col], vb = b[col];
+    if(typeof va === 'string') { va = va.toLowerCase(); vb = (vb||'').toLowerCase(); }
+    if(va < vb) return _sortAsc ? -1 : 1;
+    if(va > vb) return _sortAsc ? 1 : -1;
+    return 0;
+  });
+  _page = 0;
+  renderTable();
+}
+
+// Search
+document.getElementById('searchInput').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  _filtered = q ? _allFunds.filter(f => (f.N||'').toLowerCase().includes(q) || (f.I||'').toLowerCase().includes(q)) : [..._allFunds];
+  sortBy(_sortCol);
+});
+
+// Sort on header click
+document.querySelectorAll('.fund-table th').forEach(th => {
+  th.addEventListener('click', () => sortBy(th.dataset.col));
+});
+
+// Load fund list — hardcoded test data from FundFinder API
+async function loadFunds() {
+  try {
+    _allFunds = [
+      { Id:'131', N:'Fidelity European Dynamic Gr A-Dis-EUR', I:'LU0119124781', C:'EUR', R:2, SR:1, Y:-3.1, R1:-7.5, R3:2.0, M:190, AUM:0 },
+      { Id:'7442', N:'Carnegie Spin-Off A', I:'SE0007074588', C:'SEK', R:3, SR:1, Y:1.1, R1:19.5, R3:49.1, M:100, AUM:0 },
+      { Id:'301', N:'Carnegie Sverigefond A', I:'SE0000429951', C:'SEK', R:2, SR:1, Y:3.1, R1:18.4, R3:32.4, M:140, AUM:0 },
+      { Id:'758', N:'Swedbank Robur Europafond A', I:'SE0000540197', C:'SEK', R:5, SR:1, Y:-0.5, R1:7.4, R3:14.9, M:125, AUM:0 },
+      { Id:'1078', N:'Storebrand Global Value A', I:'NO0010075476', C:'NOK', R:3, SR:1, Y:3.4, R1:15.1, R3:18.7, M:75, AUM:6815 },
+      { Id:'959', N:'Storebrand Global All Countries A SEK', I:'NO0010841588', C:'SEK', R:2, SR:1, Y:2.3, R1:19.1, R3:46.9, M:30, AUM:4038 },
+      { Id:'838', N:'SEB Sverigefond', I:'SE0000434060', C:'SEK', R:2, SR:1, Y:3.0, R1:18.0, R3:30.0, M:125, AUM:0 },
+      { Id:'919', N:'SEB Läkemedelsfond', I:'SE0000434136', C:'SEK', R:3, SR:1, Y:5.2, R1:12.3, R3:11.4, M:150, AUM:0 },
+      { Id:'17103', N:'Carnegie Småbolagsfond A', I:'SE0008348304', C:'SEK', R:1, SR:1, Y:4.7, R1:15.8, R3:30.0, M:100, AUM:0 },
+      { Id:'958', N:'Storebrand Europa A SEK', I:'NO0010841562', C:'SEK', R:3, SR:1, Y:6.8, R1:11.9, R3:11.4, M:30, AUM:0 },
+    ];
+    _filtered = [..._allFunds];
+    _filtered.sort((a,b) => (a.N||'').localeCompare(b.N||''));
+    
+    document.getElementById('statusDot').style.background = 'var(--green)';
+    document.getElementById('statusText').textContent = `Testläge · ${_allFunds.length} fonder (hårdkodade) · Detaljer hämtas live från FundFinder API`;
+    renderTable();
+  } catch(e) {
+    document.getElementById('statusDot').style.background = 'var(--red)';
+    document.getElementById('statusText').textContent = 'Fel: ' + e.message;
+    document.getElementById('fundBody').innerHTML = '<tr><td colspan="9"><div class="loading" style="color:var(--red)">Fel vid laddning</div></td></tr>';
+  }
+}
+
+// Fund detail
+async function openDetail(id, name, isin, currency) {
+  const overlay = document.getElementById('overlay');
+  overlay.classList.add('open');
+  document.getElementById('detailName').textContent = name;
+  document.getElementById('detailSub').textContent = `ISIN: ${isin} · Valuta: ${currency} · FundFinder ID: ${id}`;
+  
+  const debugLog = [];
+  const log = msg => { debugLog.push(msg); };
+  
+  const showDebug = () => {
+    return `<div style="margin-top:20px;background:#1a2b47;color:#22c55e;padding:16px;border-radius:10px;font-family:'SF Mono',monospace;font-size:11px;line-height:1.8;white-space:pre-wrap">
+<div style="color:#f59e0b;font-weight:700;margin-bottom:8px">DEBUG LOG</div>${debugLog.map(l => {
+      if(l.startsWith('ERROR')) return `<span style="color:#ef4444">${esc(l)}</span>`;
+      if(l.startsWith('OK')) return `<span style="color:#22c55e">${esc(l)}</span>`;
+      return esc(l);
+    }).join('\n')}</div>`;
+  };
+  
+  document.getElementById('detailBody').innerHTML = '<div class="loading"><span class="spin"></span>Laddar fonddata...</div>';
+  
+  let infoResp = null, sectorResp = [], regionResp = [], sriResp = [];
+  
+  // Test each endpoint individually with full error details
+  // 1. Fund info
+  log('--- Cookies tillgängliga: ' + (document.cookie ? document.cookie.substring(0,100) : 'INGA') + ' ---');
+  log('--- Testar /funds/fundinfo/' + id + ' ---');
+  try {
+    const r = await fetch(FF_BASE + '/fundinfo/' + id, {credentials:'include'});
+    log('OK Status: ' + r.status + ' ' + r.statusText);
+    log('OK Content-Type: ' + r.headers.get('content-type'));
+    infoResp = await r.text();
+    log('OK Svar: ' + infoResp.substring(0, 100) + '...');
+  } catch(e) {
+    log('ERROR Fetch misslyckades: ' + e.name + ': ' + e.message);
+  }
+  
+  // 2. Sectors
+  log('--- Testar /funds/industries/' + id + ' ---');
+  try {
+    const r = await fetch(FF_BASE + '/industries/' + id, {credentials:'include'});
+    log('OK Status: ' + r.status + ' ' + r.statusText);
+    const txt = await r.text();
+    log('OK Svar (raw): ' + txt.substring(0, 150) + '...');
+    if(r.ok && !txt.startsWith('<!DOCTYPE')) {
+      // Try JSON first, then XML
+      try { sectorResp = JSON.parse(txt); log('OK Parsad JSON: ' + sectorResp.length + ' sektorer'); }
+      catch(pe) {
+        // Parse as XML
+        const xd = new DOMParser().parseFromString(txt, 'text/xml');
+        const items = xd.querySelectorAll('IndustryInfo');
+        sectorResp = Array.from(items).map(n => ({
+          Name: n.querySelector('Name')?.textContent || '',
+          Slice: parseFloat(n.querySelector('Slice')?.textContent) || 0
+        })).filter(s => s.Slice > 0);
+        log('OK Parsad XML: ' + sectorResp.length + ' sektorer');
+      }
+    } else {
+      log('ERROR Server returnerade ' + r.status + ' eller HTML');
+    }
+  } catch(e) {
+    log('ERROR Fetch misslyckades: ' + e.name + ': ' + e.message);
+  }
+  
+  // 3. Regions
+  log('--- Testar /funds/regionsandcountries/' + id + ' ---');
+  try {
+    const r = await fetch(FF_BASE + '/regionsandcountries/' + id, {credentials:'include'});
+    log('OK Status: ' + r.status + ' ' + r.statusText);
+    const txt = await r.text();
+    log('OK Svar (raw): ' + txt.substring(0, 150) + '...');
+    if(r.ok && !txt.startsWith('<!DOCTYPE')) {
+      try { regionResp = JSON.parse(txt); log('OK Parsad JSON: ' + regionResp.length + ' länder'); }
+      catch(pe) {
+        const xd = new DOMParser().parseFromString(txt, 'text/xml');
+        const items = xd.querySelectorAll('RegionAndCountry');
+        regionResp = Array.from(items).map(n => ({
+          CountryName: n.querySelector('CountryName')?.textContent || '',
+          CountryCode: n.querySelector('CountryCode')?.textContent || '',
+          Share: parseFloat(n.querySelector('Share')?.textContent) || 0,
+          Region: n.querySelector('Region')?.textContent || '',
+          RegionShare: parseFloat(n.querySelector('RegionShare')?.textContent) || 0
+        })).filter(r => r.Share > 0);
+        log('OK Parsad XML: ' + regionResp.length + ' länder');
+      }
+    } else {
+      log('ERROR Server returnerade ' + r.status + ' eller HTML');
+    }
+  } catch(e) {
+    log('ERROR Fetch misslyckades: ' + e.name + ': ' + e.message);
+  }
+  
+  // 4. SRI
+  log('--- Testar /funds/getsriexlusions/' + id + ' ---');
+  try {
+    const r = await fetch(FF_BASE + '/getsriexlusions/' + id, {credentials:'include'});
+    log('OK Status: ' + r.status + ' ' + r.statusText);
+    const txt = await r.text();
+    log('OK Svar (raw): ' + txt.substring(0, 100) + '...');
+    if(r.ok && !txt.startsWith('<!DOCTYPE')) {
+      try { sriResp = JSON.parse(txt); log('OK Parsad JSON: ' + sriResp.length + ' exkluderingar'); }
+      catch(pe) { log('OK Svar är XML (ej parsat)'); }
+    } else {
+      log('ERROR Server returnerade ' + r.status + ' eller HTML');
+    }
+  } catch(e) {
+    log('ERROR Fetch misslyckades: ' + e.name + ': ' + e.message);
+  }
+  
+  try {
+    // Parse fundinfo XML
+    let info = {};
+    if(infoResp && !infoResp.startsWith('<!DOCTYPE')) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(infoResp, 'text/xml');
+      const get = tag => { const el = doc.querySelector(tag); return el ? el.textContent : null; };
+      info = {
+        strategy: get('InvestmentStrategy'),
+        managers: get('Managers'),
+        company: get('CompanyName'),
+        inception: get('InceptionDate'),
+        navDate: get('LatestNavDate'),
+        nav: get('LatestNavBaseCurrency'),
+        ongoingCharge: get('OngoingCharge'),
+        fundSize: get('TotalFundValue'),
+        category: get('AssetSubClassName'),
+        navFreq: get('NavReportingFrequency'),
+      };
+      log('OK Fundinfo parsed: NAV=' + (info.nav||'–') + ', Bolag=' + (info.company||'–'));
+    } else {
+      log('ERROR Fundinfo returnerade HTML istället för XML (CORS eller redirect)');
+    }
+    
+    let html = '';
+    
+    // KPIs
+    html += `<div class="detail-section"><h3>Nyckeltal</h3><div class="kpi-row">`;
+    if(info.nav) html += `<div class="kpi"><div class="label">NAV</div><div class="value">${parseFloat(info.nav).toLocaleString('sv-SE', {minimumFractionDigits:2, maximumFractionDigits:2})}</div></div>`;
+    if(info.navDate) html += `<div class="kpi"><div class="label">NAV-datum</div><div class="value" style="font-size:14px">${info.navDate.split('T')[0]}</div></div>`;
+    if(info.ongoingCharge) html += `<div class="kpi"><div class="label">Löpande avgift</div><div class="value">${(parseFloat(info.ongoingCharge)).toFixed(2)}%</div></div>`;
+    if(info.fundSize) html += `<div class="kpi"><div class="label">Fondstorlek</div><div class="value" style="font-size:14px">${(parseFloat(info.fundSize)/1e6).toFixed(0)} MSEK</div></div>`;
+    if(info.category) html += `<div class="kpi"><div class="label">Kategori</div><div class="value" style="font-size:13px">${esc(info.category)}</div></div>`;
+    if(info.company) html += `<div class="kpi"><div class="label">Fondbolag</div><div class="value" style="font-size:13px">${esc(info.company)}</div></div>`;
+    if(info.managers) html += `<div class="kpi"><div class="label">Förvaltare</div><div class="value" style="font-size:12px">${esc(info.managers)}</div></div>`;
+    if(info.inception) html += `<div class="kpi"><div class="label">Startdatum</div><div class="value" style="font-size:14px">${info.inception.split('T')[0]}</div></div>`;
+    html += `</div></div>`;
+    
+    // Strategy
+    if(info.strategy) {
+      html += `<div class="detail-section"><h3>Investeringsstrategi</h3><p style="font-size:13px;line-height:1.6;color:var(--slate)">${esc(info.strategy).substring(0,400)}${info.strategy.length > 400 ? '...' : ''}</p></div>`;
+    }
+    
+    // Charts row: Sectors + Regions
+    html += `<div class="charts-row">`;
+    
+    // Sectors
+    if(sectorResp && sectorResp.length) {
+      const sorted = sectorResp.sort((a,b) => b.Slice - a.Slice);
+      html += `<div class="chart-box"><h4>Sektorfördelning</h4>`;
+      sorted.forEach((s, i) => {
+        html += `<div class="bar-row">
+          <span class="bar-label">${esc(s.Name)}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${s.Slice}%;background:${COLORS[i % COLORS.length]}"></div></div>
+          <span class="bar-pct">${s.Slice.toFixed(1)}%</span>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+    
+    // Regions
+    if(regionResp && regionResp.length) {
+      // Group by region
+      const regions = {};
+      regionResp.forEach(r => {
+        if(!regions[r.Region]) regions[r.Region] = { share: r.RegionShare, countries: [] };
+        regions[r.Region].countries.push({ name: r.CountryName, code: r.CountryCode, share: r.Share });
+      });
+      
+      const regionList = Object.entries(regions).sort((a,b) => b[1].share - a[1].share);
+      
+      html += `<div class="chart-box"><h4>Regionfördelning</h4>`;
+      regionList.forEach(([name, data], i) => {
+        html += `<div class="bar-row">
+          <span class="bar-label" style="font-weight:600">${esc(name)}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${data.share}%;background:${COLORS[i % COLORS.length]}"></div></div>
+          <span class="bar-pct">${data.share.toFixed(1)}%</span>
+        </div>`;
+        // Show top countries
+        data.countries.sort((a,b) => b.share - a.share).slice(0, 5).forEach(c => {
+          html += `<div class="bar-row" style="padding-left:20px;opacity:.7">
+            <span class="bar-label" style="font-size:10px">${c.code ? '<img src="https://flagcdn.com/w20/' + c.code.substring(0,2).toLowerCase() + '.png" style="height:10px;vertical-align:middle;margin-right:4px" onerror="this.style.display=\'none\'">' : ''}${esc(c.name)}</span>
+            <div class="bar-track" style="height:10px"><div class="bar-fill" style="width:${c.share}%;background:${COLORS[i % COLORS.length]};opacity:.6"></div></div>
+            <span class="bar-pct" style="font-size:10px">${c.share.toFixed(1)}%</span>
+          </div>`;
+        });
+      });
+      html += `</div>`;
+    }
+    
+    html += `</div>`; // end charts-row
+    
+    document.getElementById('detailBody').innerHTML = html + showDebug();
+    
+  } catch(e) {
+    document.getElementById('detailBody').innerHTML = `<div class="loading" style="color:var(--red)">Fel: ${e.message}</div>` + showDebug();
+  }
+}
+
+function closeDetail() {
+  document.getElementById('overlay').classList.remove('open');
+}
+
+// Keyboard: Escape to close
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeDetail(); });
+
+// Init
+loadFunds();
+</script>
+</body>
+</html>
